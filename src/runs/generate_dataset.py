@@ -21,8 +21,6 @@ Tasks:
   -9  Compressing reasoning traces (compressed_cot)
 """
 
-assert False, "This script is for reference only. Remove this line to regenerate datasets."
-
 import argparse
 import json
 import sys
