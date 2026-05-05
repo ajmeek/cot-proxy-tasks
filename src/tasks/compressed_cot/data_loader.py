@@ -1,23 +1,35 @@
 """
 Data loader for compressed CoT task.
 
-Loads questions and their verified CoTs from the verification_rollouts directory.
-Reuses the same verification data format as forced_response.
+Originally re-exported five helpers from ``forced_response.data_loader``
+(``get_latest_verification_dir`` etc.). Those have since been removed
+upstream; the imports were dead. Replaced with stubs that raise
+``NotImplementedError`` if called — the verification-rollouts pipeline
+isn't exercised in our regen path (we feed source rollouts directly via
+``CompressedCotTask.get_choice_distribution``).
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from ...utils.questions import Question
 
-# Re-export from forced_response's data_loader since the format is identical
-from ..forced_response.data_loader import (
-    get_latest_verification_dir,
-    get_verified_questions,
-    load_question_and_cot,
-    load_verification_summary,
-    question_from_summary,
-)
+
+def _stub(name: str):
+    def fn(*_args: Any, **_kwargs: Any):
+        raise NotImplementedError(
+            f"{name}() is a verification-rollouts helper that was removed upstream. "
+            f"This stub keeps imports working; provide source rollouts directly instead."
+        )
+    return fn
+
+
+get_latest_verification_dir = _stub("get_latest_verification_dir")
+get_verified_questions = _stub("get_verified_questions")
+load_question_and_cot = _stub("load_question_and_cot")
+load_verification_summary = _stub("load_verification_summary")
+question_from_summary = _stub("question_from_summary")
+
 
 __all__ = [
     "load_question_and_cot",
