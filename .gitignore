@@ -1,0 +1,8 @@
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Smoke / regen output (per-task data dirs created by Task classes)
+data/

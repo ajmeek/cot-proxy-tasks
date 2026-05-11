@@ -21,12 +21,11 @@ Tasks:
   -9  Compressing reasoning traces (compressed_cot)
 """
 
-assert False, "This script is for reference only. Remove this line to regenerate datasets."
-
 import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DATASETS_DIR = PROJECT_ROOT / "datasets"
@@ -55,7 +54,7 @@ def _save_json(path: Path, data: dict) -> None:
 TASK_4_SPLITS = ["train", "val", "test"]
 
 
-def generate_task_4() -> None:
+def generate_task_4(max_prompts: Optional[int] = None, num_samples: Optional[int] = None) -> None:
     """Generate dataset 4: Detecting the effect of a user preference (scruples).
 
     Instantiates ScruplesTask for each variant, calls run_data() to produce
@@ -73,14 +72,21 @@ def generate_task_4() -> None:
     subject_model = "qwen/qwen3-32b"
     out_dir = DATASETS_DIR / "4"
 
+    run_kwargs = {}
+    if max_prompts is not None:
+        run_kwargs["max_prompts"] = max_prompts
+    if num_samples is not None:
+        run_kwargs["num_samples"] = num_samples
+
     # Generate rollouts for each variant
     for variant in ScruplesTask.VARIANTS:
         print(f"\n--- Variant: {variant} ---")
         task = ScruplesTask(subject_model=subject_model, variant=variant)
-        task.run_data(verbose=True)
+        task.run_data(verbose=True, **run_kwargs)
 
-    # Build the canonical split and save
-    task = ScruplesTask(subject_model=subject_model, variant="first_person")
+    # Build the canonical split and save. Variant only matters for the data dir
+    # name pattern; get_uncertainty_robust_split reads both variants' CSVs.
+    task = ScruplesTask(subject_model=subject_model, variant="suggest_right")
     data_slice = task.get_uncertainty_robust_split()
 
     split_dfs = {
@@ -467,6 +473,10 @@ def main() -> None:
                         help="Generate dataset 9: compressed_cot (reasoning compression)")
     parser.add_argument("--all", action="store_true",
                         help="Generate all 5 datasets")
+    parser.add_argument("--max-prompts", type=int, default=None,
+                        help="Cap the number of source prompts per variant (smoke test). Default: full dataset.")
+    parser.add_argument("--num-samples", type=int, default=None,
+                        help="Override per-arm sample count (default in task: 50). Lower for quick smoke runs.")
 
     args = parser.parse_args()
 
@@ -487,13 +497,23 @@ def main() -> None:
     print(f"Generating datasets for tasks: {selected}")
     print(f"Output directory: {DATASETS_DIR}\n")
 
+    runner_kwargs = {}
+    if args.max_prompts is not None:
+        runner_kwargs["max_prompts"] = args.max_prompts
+    if args.num_samples is not None:
+        runner_kwargs["num_samples"] = args.num_samples
+
     for task_num in selected:
         desc, runner = TASK_RUNNERS[task_num]
         print(f"\n{'#' * 60}")
         print(f"# Task {task_num}: {desc}")
         print(f"{'#' * 60}\n")
         try:
-            runner()
+            # Only task 4 currently accepts max_prompts/num_samples; other
+            # tasks ignore them until threaded through.
+            import inspect as _inspect
+            accepted = set(_inspect.signature(runner).parameters)
+            runner(**{k: v for k, v in runner_kwargs.items() if k in accepted})
         except Exception as e:
             print(f"\nError generating task {task_num}: {e}")
             import traceback
